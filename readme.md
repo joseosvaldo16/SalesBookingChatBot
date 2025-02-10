@@ -103,13 +103,15 @@ This class provides several utility methods used throughout the bot for tasks li
 #### **2.5 Adaptive Cards (AdaptiveCard.json, AdaptiveCardResults.json)**
 These JSON files define the templates for adaptive cards used to present results to users in both Teams and Web Chat.
 
-- **`AdaptiveCard.json`:** Contains placeholders for the user's query and SQL query, which are replaced dynamically when results are displayed.
+- **[`AdaptiveCard.json`](src/utilities/AdaptiveCard.json):** Contains placeholders for the user's query and SQL query, which are replaced dynamically when results are displayed.
+
+- **[`AdaptiveCardResults.json`](src/utilities/AdaptiveCardResults.json):** Contains placeholders for the query results, which are replaced dynamically when results are displayed.
 
 #### **2.6 Dialog Helper (dialog_helper.py)**
-The **DialogHelper** class is a utility class that helps manage dialog states, such as resetting or clearing the conversation when requested.
+The **[`DialogHelper`](src/utilities/dialog_helper.py)** class is a utility class that helps manage dialog states, such as resetting or clearing the conversation when requested.
 
 - **Key Method:**
-  - **`run_dialog`:** Handles starting and managing active dialogs based on the current conversation state.
+  - **[`run_dialog`](src/utilities/dialog_helper.py#L9-41):** Handles starting and managing active dialogs based on the current conversation state.
 
 ---
 
@@ -119,7 +121,7 @@ Here is a simplified workflow that explains how the bot processes user queries:
 
 1. **User Interaction:**
    - A user sends a message via a channel like Teams or Web Chat.
-   - The message is received by the **app.py** file, which routes it to the **[SalesBook`ingBot](src/bots/SalesBookingBot.py)** class.
+   - The message is received by the **app.py** file, which routes it to the **[SalesBookingBot](src/bots/SalesBookingBot.py)** class.
    - The message is sent to the **on_message_activity** method by the **[`on_turn`](src/bots/SalesBookingBot.py#L117-127)** method in **[`SalesBookingBot`](src/bots/SalesBookingBot.py)** where it saves the user input and initiates or continues the SalesBookingDialog. The SalesBookingDialog initiates at the **[`prompt_for_login_step`](src/dialogs/SalesBookingDialog.py#L128-139)** in the **[`AuthDialog`](src/dialogs/SalesBookingDialog.py#L101-104)** which uses **[`OAuthPrompt`](src/dialogs/SalesBookingDialog.py#97)** sub dialog provided by the framework to check if the user is authenticated, or prompt the user to sign in. After the user is authenticated, the bot extracts the name of the user and saves it in the conversation state in the **[`handle_login_step`](src/dialogs/SalesBookingDialog.py#L141-179)** method.
 2. **Query Interpretation:**
    - The input is then passed to **[`handle_message_step`](src/dialogs/SalesBookingDialog.py#L201-233)** in the **[`SalesBookingDialog`](src/dialogs/SalesBookingDialog.py)** for processing. This will determine if the message is a query to be processed or a conversational input to be responded to by the bot (ChatGPT). If the message is a query, the bot will proceed to the **handle_query** method, otherwise, it will respond to the user's input using ChatGPT in the **[`chat_with_gpt`](src/dialogs/SalesBookingDialog.py#L443-483)** method then end the **[`SalesBookingDialog`](src/dialogs/SalesBookingDialog.py)** waterfall dialog.

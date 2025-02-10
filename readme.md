@@ -31,7 +31,7 @@ Whether you're running it locally or within a Docker container, SQLQueryBot prov
 - [`src/models/UserProfile.py`](src/models/UserProfile.py): This file contains the UserProfile class, which is used to store user information.
 - [`webfiles/index.html`](webfiles/index.html): This file contains the HTML code for the web chat interface.
 - [`webfiles/style-v1.css`](webfiles/style-v1.css): This file contains the CSS code for the web chat interface.
-- [`Vector_Stores`](Vector_Stores): This directory contains the vector stores used by the bot for matching column names.
+- [`Vector_Stores`](Vector_Stores): This directory originally contained the vector stores used by the bot for matching column names.Vector stores were stored within their own folder for each column vectordb.
 - [`Dockerfile`](Dockerfile): This file is used to build a Docker image for the application.
 - [`requirements.txt`](requirements.txt): This file lists all Python dependencies, which can be installed using pip.
 
@@ -153,28 +153,24 @@ Here is a list of key Python packages used in the bot application:
 - **pyodbc** & **aioodbc**: Handle SQL queries and database connections.
 - **Azure Open AI**: Manages interaction with the GPT model.
 - **faiss-cpu**: For vector-based searches.
-- **tiktoken**: Handles token management for GPT queries.
 
 ---
-
-
 
 The **SalesBot** is a powerful tool built using the **Microsoft Bot Framework**, **Azure Services**, and **OpenAI GPT-4**. It provides a conversational interface for users to query complex sales and booking data. By leveraging the modular dialog structure, adaptive cards, and Azure Blob Storage, the bot ensures seamless user interactions and data handling.
 
 ## Bot Functionality
 
-SQLQueryBot is a Python-based bot application that leverages the Bot Framework SDK for Python and aiohttp web server to handle MS SQL queries. It is designed to generate syntactically correct MS SQL queries based on user input, adhering to a set of guidelines to ensure the integrity and security of the database.
+**SalesBot** is a Python-based bot application that leverages the Bot Framework SDK for Python and aiohttp web server to handle MS SQL queries. It is designed to generate syntactically correct MS SQL queries based on user input, adhering to a set of guidelines to ensure the integrity and security of the database.
 
 The bot's functionality includes:
 
-- Querying only the necessary columns, never selecting all columns from a table.
-- Using only existing column names from the specified tables.
-- Avoiding any queries that modify the database such as update, create Table, etc; only read-only commands are allowed.
-- Using 'CAST(GETDATE() as date)' to get the current date for questions involving 'today'.
-- Focusing on the table and column information provided.
-- Using the 'TOP' clause instead of 'LIMIT'.
-- Returning only the MSSQL query in MSSQL syntax, without any additional explanations or text.
-- Ensuring that no matter the input, none of the rules above are broken.
+- Allows interactive querying of sales and bookings data.  
+- Detects ambiguous filter values, clarifies them, and updates queries accordingly using the [SalesBookingDialog.prompt_for_clarification_step](src/dialogs/SalesBookingDialog.py) method.  
+- Automatically attempts to fix queries if errors occur (up to 3 times), as shown in (SalesBookingDialog.handle_query)[src/dialogs/SalesBookingDialog.py.]
+- Saves large query results to CSV in Azure Blob Storage using BotUtilities.save_csv_to_blob.  
+- Provides a sign-out flow by typing any variant of "log out" see (SalesBookingDialog.handle_message_step)[src/dialogs/SalesBookingDialog.py.].  
+- Resets the conversation state when the user types "reset" or "restart" handled in the same (SalesBookingDialog.handle_message_step)[src/dialogs/SalesBookingDialog.py.]
+- Enforces read-only queries, uses only existing columns, resorts to 'TOP' instead of 'LIMIT', and follows other SQL rules, see the “Rules” section of (readme.md)[readme.me].
 
 The bot is designed to be run either locally or within a Docker container, making it flexible and portable across different environments. It also includes OAuthPrompt for handling authentication, ensuring secure access to the bot's functionality.
 

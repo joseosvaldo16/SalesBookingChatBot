@@ -1,0 +1,48 @@
+.webchat__bubble {
+    max-width: 100% !important; /* Make bubble width responsive */
+    overflow-x: auto !important; /* Only allow specific content to scroll horizontally */
+    width: max-content !important; /* Make bubble width fit its content */
+
+}
+
+.webchat__bubble__content {
+    max-width: 100% !important;
+    overflow: auto !important; /* Allow horizontal scrolling for wide content */
+    background-color: #e2eff8 !important;
+}
+
+.ac-container.ac-adaptiveCard {
+    display: table !important;
+    max-width: 100% !important;
+    overflow-x: auto !important; /* Allow horizontal scrolling for wide content */
+    flex: auto !important;
+}
+.ac-container {
+    width: auto !important;
+    min-width: 150px !important;
+}
+.ac-textBlock {
+    text-wrap: wrap !important;
+    max-width: 500px !important;
+}
+.ac-actionSet button {
+    max-width: 200px !important;
+    min-width: 150px !important;
+}
+
+
+.banner {
+    background-color: #007AC3; /* A blue background */
+    color: white; /* White text */
+    text-align: center; /* Center the text */
+    padding: 10px 0; /* Some padding for spacing */
+    font-size: 24px; /* Larger text size */
+    font-weight: bold; /* Make the text bold */
+}
+
+.banner img {
+    max-height: 100px; /* Adjust this value to make the image smaller */
+    max-width: 160px; /* Adjust this value to limit the image's width, if necessary */
+    width: auto; /* Maintain aspect ratio */
+    height: auto; /* Maintain aspect ratio */
+}

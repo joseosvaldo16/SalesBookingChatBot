@@ -1,0 +1,58 @@
+{
+    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+    "type": "AdaptiveCard",
+    "msteams": { "width": "full" },
+    "version": "1.5",
+    "body": [
+        {
+            "type": "TextBlock",
+            "text": "Query:\n",
+            "wrap": true,
+            "horizontalAlignment": "left",
+            "weight": "bolder",
+            "style": "heading",
+            "color": "default"
+            
+        },
+        {
+            "type": "TextBlock",
+            "text": "{query}",
+            "wrap": true,
+            "horizontalAlignment": "left",
+            "color": "default",
+            "fontType": "Monospace"
+          
+        },
+        {
+            "type": "TextBlock",
+            "text": "SQL Query:\n",
+            "wrap": true,
+            "horizontalAlignment": "left",
+            "weight": "bolder",
+            "style": "heading",
+            "color": "default"
+
+        },
+        {
+            "type": "TextBlock",
+            "text": "{sql_query}",
+            "wrap": true,
+            "horizontalAlignment": "left",
+            "color": "default",
+            "fontType": "Monospace",
+            "size": "small"
+          
+        },
+        {
+            "type": "TextBlock",
+            "text": "Results:",
+            "wrap": true,
+            "horizontalAlignment": "left",
+            "color": "default",
+            "style": "heading"
+        }
+     
+    ],
+    "actions": [] 
+
+}

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <title>Midtronics Chatbot</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script crossorigin="anonymous" src="https://cdn.botframework.com/botframework-webchat/latest/webchat.js"></script>
+    <link rel="stylesheet" href="webfiles/style-v1.css">
+    <style>
+        html, body {
+            height: 95% !important;
+            margin: 0 !important;
+        }
+
+        body {
+            margin: 0 !important;
+        }
+
+        #webchat {
+            height: 100% !important;
+            width: 100% !important;
+            overflow-x: auto !important; /* Prevent horizontal scrolling on the chat container */
+        }
+    </style>
+</head>
+<body>
+    <div class="banner">
+        <img src="webfiles/midtronics-logo.png" alt="Midtronics Logo">
+    </div>
+    <div id="webchat" role="main"></div>
+    <script>
+        (async function () {
+                //extract client secret from environment variable DirectLineToken
+            async function fetchDirectLineSecret() {
+                try {
+                    const res = await fetch('/api/get_direct_line_secret');
+                    if (!res.ok) {
+                        throw new Error(`Failed to fetch Direct Line secret: ${res.statusText}`);
+                    }
+                    const { secret } = await res.json();
+                    return secret;
+                } catch (error) {
+                    console.error('Error fetching Direct Line secret:', error);
+                    return null;
+                }
+            }
+
+            const secret = await fetchDirectLineSecret();
+            const OAUTH_TOKEN_EXPIRATION = 24 * 60 * 60 * 1000; // 10 mins hrs in milliseconds
+
+            // Generate a unique user ID
+            function generateUserID() {
+                return 'dl_' + Math.random().toString(36).substr(2, 9);
+            }
+
+            // Generate a display-friendly name for the user
+            function generateUserName() {
+                return 'User-' + Math.random().toString(36).substr(2, 5);
+            }
+
+            // Retrieve stored tokens and user ID
+            let oauthToken = sessionStorage.getItem('oauthToken');
+            let oauthTokenTimestamp = sessionStorage.getItem('oauthTokenTimestamp');
+            let userID = sessionStorage.getItem('userID');
+            let userName = sessionStorage.getItem('userName');
+
+            // Check if OAuth token has expired
+            function isOAuthTokenExpired() {
+                if (!oauthTokenTimestamp) return true;
+                const elapsed = Date.now() - parseInt(oauthTokenTimestamp, 10);
+                return elapsed > OAUTH_TOKEN_EXPIRATION;
+            }
+
+            // Handle expired OAuth token
+            if (isOAuthTokenExpired()) {
+                oauthToken = null;
+                sessionStorage.removeItem('oauthToken');
+                sessionStorage.removeItem('oauthTokenTimestamp');
+            }
+
+            // Generate and store a new user ID and name if none are stored
+            if (!userID) {
+                userID = generateUserID();
+                sessionStorage.setItem('userID', userID);
+            }
+
+            if (!userName) {
+                userName = generateUserName();
+                sessionStorage.setItem('userName', userName);
+            }
+            // Fetch Direct Line token with user information and trusted origins
+            async function fetchDirectLineToken(userID, userName) {
+                try {
+                    const res = await fetch('https://directline.botframework.com/v3/directline/tokens/generate', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${secret}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            user: { id: userID, name: userName },
+                            trustedOrigins: ['']  // Add your trusted domain(s) here
+                        })
+                    });
+
+                    if (!res.ok) {
+                        const errorText = await res.text();
+                        console.error(`Failed to fetch Direct Line token: ${res.status} ${res.statusText} - ${errorText}`);
+                        return null;
+                    }
+                    const { token } = await res.json();
+                    sessionStorage.setItem('directLineToken', token);
+                    return token;
+                } catch (error) {
+                    console.error('Error fetching Direct Line token:', error);
+                    return null;
+                }
+            }
+
+            let directLineToken = sessionStorage.getItem('directLineToken');
+
+            if (!directLineToken) {
+                directLineToken = await fetchDirectLineToken(userID, userName);
+            }
+
+            if (!directLineToken) {
+                console.error('Unable to initialize WebChat due to missing Direct Line token.');
+                return;
+            }
+
+            // Function to save OAuth token
+            function saveOAuthToken(activity) {
+                if (activity.type === 'event' && activity.name === 'tokens/response') {
+                    sessionStorage.setItem('oauthToken', activity.value.token);
+                    sessionStorage.setItem('oauthTokenTimestamp', Date.now().toString());
+                    oauthToken = activity.value.token; // Update the oauthToken variable
+                }
+            }
+
+            // Initialize WebChat
+            const store = window.WebChat.createStore({}, ({ dispatch }) => next => action => {
+                if (action.type === 'DIRECT_LINE/POST_ACTIVITY_FULFILLED') {
+                    const activity = action.payload.activity;
+                    if (activity.type === 'event' && activity.name === 'tokens/response') {
+                        saveOAuthToken(activity);
+                    }
+                }
+                return next(action);
+            });
+
+            window.WebChat.renderWebChat(
+                {
+                    directLine: window.WebChat.createDirectLine({ token: directLineToken }),
+                    userID: userID, // Use the dynamically generated user ID
+                    username: userName, // Pass the userName
+                    store,
+                    styleOptions: {
+                        hideUploadButton: true // Hide the attachment button
+                    }
+                },
+                document.getElementById('webchat')
+            );
+
+            document.querySelector('#webchat > *').focus();
+        })().catch(err => console.error(err));
+    </script>
+</body>
+</html>

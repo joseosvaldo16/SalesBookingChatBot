@@ -1,0 +1,10 @@
+{
+    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+    "type": "AdaptiveCard",
+    "msteams": { "width": "full" },
+    "version": "1.5",
+    "body": [
+
+    ],
+    "actions": []
+}

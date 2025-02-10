@@ -64,41 +64,41 @@ The application is divided into several files, each with specific roles. Below i
 This file acts as the entry point for the bot and sets up essential configurations like app server, routing, middleware, and error handling.
 
 - **Key Classes and Functions:**
-  - **`on_error`:** Centralized error handler for the bot, which sends messages to the user when an error occurs.
-  - **`messages`:** Main route for processing messages received from the user.
-  - **`get_direct_line_secret`:** Route to retrieve the bot's Direct Line secret, stored in environment variables.
+  - **[on_error](app.py#L30-44):** Centralized error handler for the bot, which sends messages to the user when an error occurs.
+  - **[messages](app.py#L53-55):** Main route for processing messages received from the user.
+  - **[get_direct_line_secret](app.py#L46-50):** Route to retrieve the bot's Direct Line secret, stored in environment variables.
 
-The bot is initialized by creating an instance of **SQLQueryBot**, which handles the actual conversation flow using various dialogs like **SalesBookingDialog**.
+The bot is initialized by creating an instance of **[SalesBookingBot](src/bots/SalesBookingBot.py)**, which handles the actual conversation flow using various dialogs like **[SalesBookingDialog](src/dialogs/SalesBookingDialog.py)**.
 
 #### **2.2 Conversation Handling (SQLQueryBot.py)**
-The **SQLQueryBot** class is responsible for processing messages from users and directing them through the correct dialogs.
+The **[SalesBookingBot](src/bots/SalesBookingBot.py)** class is responsible for processing messages from users and directing them through the correct dialogs.
 
 - **Key Methods:**
-  - **`on_message_activity`:** Handles new user messages and initiates or continues the dialogs based on the state.
-  - **`on_token_response_event`:** Processes OAuth token responses when users sign in.
-  - **`on_teams_signin_verify_state`:** Used for verifying user authentication within Teams.
-  - **`on_members_added_activity`:** Responds to new members joining the conversation.
-  - **`on_turn`:** Dispatches incoming activities to the appropriate handler based on the activity type.
+  - **[on_message_activity](src/bots/SalesBookingBot.py#L35-43):** Handles new user messages and initiates or continues the dialogs based on the state.
+  - **[on_token_response_event](src/bots/SalesBookingBot.py#L46-68):** Processes OAuth token responses when users sign in.
+  - **[on_teams_signin_verify_state](src/bots/SalesBookingBot.py#L71-115):** Used for verifying user authentication within Teams.
+  - **[on_members_added_activity](src/bots/SalesBookingBot.py#L131-145):** Responds to new members joining the conversation.
+  - **[on_turn](src/bots/SalesBookingBot.py#L117-127):** Dispatches incoming activities to the appropriate handler based on the activity type.
 
 #### **2.3 Dialog Management (SalesBookingDialog.py)**
-This file contains the **SalesBookingDialog** class, which manages the conversation logic for handling sales and booking queries.
+This file contains the **[SalesBookingDialog](src/dialogs/SalesBookingDialog.py)** class, which manages the conversation logic for handling sales and booking queries.
 
 - **Key Dialogs:**
-  - **`prompt_for_login_step` & `handle_login_step`:** Handles user authentication via OAuth.
-  - **`handle_message_step`:** Processes user input and uses GPT-4 to interpret queries.
-  - **`run_query_step`:** Generates and runs SQL queries, then formats results for the user.
-  - **`prompt_for_clarification_step`:** Asks clarifying questions when the query is ambiguous.
-  - **`process_results_step`:** Saves the query results to Azure Blob Storage and presents the results via an adaptive card.
+  - **[prompt_for_login_step](src/dialogs/SalesBookingDialog.py#L128-139) &[handle_login_step](src/dialogs/SalesBookingDialog.py#L141-179):** Handles user authentication via OAuth.
+  - **[handle_message_step](src/dialogs/SalesBookingDialog.py#L201-233):** Processes user input and uses GPT-4 to interpret queries.
+  - **[run_query_step](src/dialogs/SalesBookingDialog.py#L358-374):** Generates and runs SQL queries, then formats results for the user.
+  - **[SalesBookingDialog.prompt_for_clarification_step](src/dialogs/SalesBookingDialog.py#L270-L310):** Asks clarifying questions when the query is ambiguous.
+  - **[process_results_step](src/dialogs/SalesBookingDialog.py#L376-440):** Saves the query results to Azure Blob Storage and presents the results via an adaptive card.
 
 #### **2.4 Utility Functions (BotUtilities.py)**
 This class provides several utility methods used throughout the bot for tasks like saving files, processing query results, and managing conversation state.
 
 - **Key Methods:**
-  - **`save_csv_to_blob`:** Saves query results as a CSV file in Azure Blob Storage and returns a download URL.
-  - **`has_name_or_product`:** Determines if the user query contains ambiguous names or products.
-  - **`find_matching_columns`:** Uses FAISS vector databases to find matching column names.
-  - **`format_result_for_adaptive_card`:** Formats SQL query results to be displayed in an adaptive card.
-  - **`get_sql_query`:** Calls GPT-4 to generate SQL queries from user input.
+  - **[save_csv_to_blob](src/utilities/BotUtilities.py#L768-808):** Saves query results as a CSV file in Azure Blob Storage and returns a download URL.
+  - **[has_name_or_product](src/utilities/BotUtilities.py#L618-629):** Determines if the user query contains ambiguous names or products.
+  - **[find_matching_columns](src/utilities/BotUtilities.py#L699-739):**Uses FAISS vector databases to find matching column names.
+  - **[format_result_for_adaptive_card](src/utilities/BotUtilities.py#L301-373):** Formats SQL query results to be displayed in an adaptive card.
+  - **[get_sql_query](src/utilities/BotUtilities.py#L907-916):** Calls GPT-4 to generate SQL queries from user input.
 
 #### **2.5 Adaptive Cards (AdaptiveCard.json, AdaptiveCardResults.json)**
 These JSON files define the templates for adaptive cards used to present results to users in both Teams and Web Chat.
@@ -119,20 +119,20 @@ Here is a simplified workflow that explains how the bot processes user queries:
 
 1. **User Interaction:**
    - A user sends a message via a channel like Teams or Web Chat.
-   - The message is received by the **app.py** file, which routes it to the **SQLQueryBot** class.
-   - The message is sent to the **on_message_activity** method by the **on_turn** method in **SQLQueryBot** where it saves the user input and initiates or continues the SalesBookingDialog. The SalesBookingDialog initiates at the **prompt_for_login_step** in the **AuthDialog** which uses **OAuthPrompt** sub dialog provided by the framework to check if the user is authenticated, or prompt the user to sign in. After the user is authenticated, the bot extracts the name of the user and saves it in the conversation state in the **handle_login_step** method.
+   - The message is received by the **app.py** file, which routes it to the **[SalesBookingBot](src/bots/SalesBookingBot.py)** class.
+   - The message is sent to the **on_message_activity** method by the **[on_turn](src/bots/SalesBookingBot.py#L117-127)** method in **[SalesBookingBot](src/bots/SalesBookingBot.py)** where it saves the user input and initiates or continues the SalesBookingDialog. The SalesBookingDialog initiates at the **[prompt_for_login_step](src/dialogs/SalesBookingDialog.py#L128-139)** in the **[AuthDialog](src/dialogs/SalesBookingDialog.py#L101-104)** which uses **[OAuthPrompt](src/dialogs/SalesBookingDialog.py#97)** sub dialog provided by the framework to check if the user is authenticated, or prompt the user to sign in. After the user is authenticated, the bot extracts the name of the user and saves it in the conversation state in the **[handle_login_step](src/dialogs/SalesBookingDialog.py#L141-179)** method.
 2. **Query Interpretation:**
-   - The input is then passed to **handle_message_step** in the **SalesBookingDialog** for processing. This will determine if the message is a query to be processed or a conversational input to be responded to by the bot (ChatGPT). If the message is a query, the bot will proceed to the **handle_query** method, otherwise, it will respond to the user's input using ChatGPT in the **chat_with_gpt** method then end the **SalesBookingDialog** waterfall dialog.
-   - The **handle_query** method checks if the query contains proper nouns or values that may belong to a column with high cardinality using the **has_name_or_product** method in the **BotUtilities** class. If such values are found, the bot will attempt to find matching values in columns using the **find_matching_columns** method in the **BotUtilities** class. If the value matches one column, it is assumed to be the correct column. If the value matches multiple or no columns, the bot will ask the user to choose which column they want to apply their filter value to using the **PromptClarificationDialog**. The **PromptClarificationDialog** will ask the user to choose the value they meant to look for by presenting the top 5 ranking unique values in the chosen column. If the query is still ambiguous, the bot will ask more questions. If the query is clear, the bot will update the natural language query, enhancing it with context. The **PromptClarificationDialog** ends, and the **SalesBookingDialog** resumes by calling the **run_query_step** method.
+   - The input is then passed to **[handle_message_step](src/dialogs/SalesBookingDialog.py#L201-233)** in the **[SalesBookingDialog](src/dialogs/SalesBookingDialog.py)** for processing. This will determine if the message is a query to be processed or a conversational input to be responded to by the bot (ChatGPT). If the message is a query, the bot will proceed to the **handle_query** method, otherwise, it will respond to the user's input using ChatGPT in the **[chat_with_gpt](src/dialogs/SalesBookingDialog.py#L443-483)** method then end the **[SalesBookingDialog](src/dialogs/SalesBookingDialog.py)** waterfall dialog.
+   - The **[handle_query](src/dialogs/SalesBookingDialog.py#L236-267)** method checks if the query contains proper nouns or values that may belong to a column with high cardinality using the **[has_name_or_product](src/utilities/BotUtilities.py#L618-629)** method in the **[Bot Utilities](src/utilities/BotUtilities.py)** class. If such values are found, the bot will attempt to find matching values in columns using the **[find_matching_columns](src/utilities/BotUtilities.py#L699-739)** method in the **[Bot Utilities](src/utilities/BotUtilities.py)** class. If the value matches one column, it is assumed to be the correct column. If the value matches multiple or no columns, the bot will ask the user to choose which column they want to apply their filter value to using the [PromptClarificationDialog](src/dialogs/SalesBookingDialog.py#L113-117)**. The [PromptClarificationDialog](src/dialogs/SalesBookingDialog.py#L113-117)** will ask the user to choose the value they meant to look for by presenting the top 5 ranking unique values in the chosen column. If the query is still ambiguous, the bot will ask more questions. If the query is clear, the bot will update the natural language query, enhancing it with context. The **[PromptClarificationDialog](src/dialogs/SalesBookingDialog.py#L113-117)** ends, and the **[SalesBookingDialog](src/dialogs/SalesBookingDialog.py)** resumes by calling the **run_query_step** method.
     
 3. **Running SQL Queries:**
-   - The **run_query_step** generates the SQL query using GPT-4o. The SQL query is then executed using the **run_query** method in the **SalesBookingDialog** class. The results are returned and used to validate the query using the **validate_sql_query** method in the **BotUtilities** class. If the query is invalid, the GPT will attempt to fix it.
+   - The **[run_query_step](src/dialogs/SalesBookingDialog.py#L358-374)** generates the SQL query using GPT-4o. The SQL query is then executed using the **[run_query](src/dialogs/SalesBookingDialog.py#L485-563)** method in the **[SalesBookingDialog](src/dialogs/SalesBookingDialog.py)** class. The results are returned and used to validate the query using the **validate_sql_query** method in the **[Bot Utilities](src/utilities/BotUtilities.py)** class. If the query is invalid, the GPT will attempt to fix it.
 
 4. **Displaying and Saving Results:**
-   The results are then formatted into an adaptive card using the **format_result_for_adaptive_card_teams** method in the **BotUtilities** class and sent to the user.
-   - If the results are too large to display in an adaptive card, they are saved as a CSV file in Azure Blob Storage using the **save_csv_to_blob** method in the **BotUtilities** class. The user receives a download link to access the results.
-   - The conversation is saved to Azure Blob Storage using the **save_conversation_details** method in the **BotUtilities** class.
-   - GPT-4o is used to explain the results to the user in a conversational manner using the **explain_results** method in the **BotUtilities** class. If the explanation indicates that an error was encountered, or contains a SQL query that has been presumably corrected, then the bot will run the **handle_query** method again to process the corrected query. It will pass the explanation as input to the **handle_query** method. The **handle_query** method will reconstruct the query from the explanation, adding any corrections made by GPT-4o. The process continues as before, with the bot attempting to self-correct up to 3 times before stopping the auto-correct loop.
+   The results are then formatted into an adaptive card using the **[format_result_for_adaptive_card_teams](src/utilities/BotUtilities.py#L376-458)** method in the **[BotUtilities](src/utilities/BotUtilities.py)** class and sent to the user.
+   - If the results are too large to display in an adaptive card, they are saved as a CSV file in Azure Blob Storage using the **[save_csv_to_blob](src/utilities/BotUtilities.py#L768-808)** method in the **[BotUtilities](src/utilities/BotUtilities.py)** class. The user receives a download link to access the results.
+   - The conversation is saved to Azure Blob Storage using the **save_conversation_details** method in the **[Bot Utilities](src/utilities/BotUtilities.py)** class.
+   - GPT-4o is used to explain the results to the user in a conversational manner using the **[explain_results](src/utilities/BotUtilities.py#L896-905)** method in the **[BotUtilities](src/utilities/BotUtilities.py)** class. If the explanation indicates that an error was encountered, or contains a SQL query that has been presumably corrected, then the bot will run the **[handle_query](src/dialogs/SalesBookingDialog.py#L236-267)** method again to process the corrected query. It will pass the explanation as input to the **[handle_query](src/dialogs/SalesBookingDialog.py#L236-267)** method. The **[handle_query](src/dialogs/SalesBookingDialog.py#L236-267)** method will reconstruct the query from the explanation, adding any corrections made by GPT-4o. The process continues as before, with the bot attempting to self-correct up to 3 times before stopping the auto-correct loop.
 
 ---
 
@@ -165,11 +165,11 @@ The **SalesBot** is a powerful tool built using the **Microsoft Bot Framework**,
 The bot's functionality includes:
 
 - Allows interactive querying of sales and bookings data.  
-- Detects ambiguous filter values, clarifies them, and updates queries accordingly using the [SalesBookingDialog.prompt_for_clarification_step](src/dialogs/SalesBookingDialog.py) method.  
-- Automatically attempts to fix queries if errors occur (up to 3 times), as shown in (SalesBookingDialog.handle_query)[src/dialogs/SalesBookingDialog.py.]
+- Detects ambiguous filter values, clarifies them, and updates queries accordingly using the [SalesBookingDialog.prompt_for_clarification_step](src/dialogs/SalesBookingDialog.py#L270-L310) method.  
+- Automatically attempts to fix queries if errors occur (up to 3 times), as shown in [SalesBookingDialog.handle_query](src/dialogs/SalesBookingDialog.py#L236-267)
 - Saves large query results to CSV in Azure Blob Storage using BotUtilities.save_csv_to_blob.  
-- Provides a sign-out flow by typing any variant of "log out" see (SalesBookingDialog.handle_message_step)[src/dialogs/SalesBookingDialog.py.].  
-- Resets the conversation state when the user types "reset" or "restart" handled in the same (SalesBookingDialog.handle_message_step)[src/dialogs/SalesBookingDialog.py.]
+- Provides a sign-out flow by typing any variant of "log out" see [SalesBookingDialog.handle_message_step](src/dialogs/SalesBookingDialog.py#L201-233).  
+- Resets the conversation state when the user types "reset" or "restart" handled in the same [SalesBookingDialog.handle_message_step](src/dialogs/SalesBookingDialog.py#L201-233)
 - Enforces read-only queries, uses only existing columns, resorts to 'TOP' instead of 'LIMIT', and follows other SQL rules, see the “Rules” section of (readme.md)[readme.me].
 
 The bot is designed to be run either locally or within a Docker container, making it flexible and portable across different environments. It also includes OAuthPrompt for handling authentication, ensuring secure access to the bot's functionality.

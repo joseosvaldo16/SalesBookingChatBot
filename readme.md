@@ -1,4 +1,4 @@
-# SQLQueryBot
+# SalesBookingBot
 
 Author: [Jose Vera](https://github.com/joseosvaldo16/)
 

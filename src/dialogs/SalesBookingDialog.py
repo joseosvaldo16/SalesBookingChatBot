@@ -23,6 +23,7 @@ from ..utilities.BotUtilities import (
     compare_headers_to_results,
     process_matched_columns
 )
+from ..utilities.sql_safety import SQLSafetyValidator, SQLSafetyError
 import logging
 import aioodbc
 import pyodbc
@@ -518,6 +519,20 @@ class SalesBookingDialog(ComponentDialog):
 
         logging.info(f"\n\nSQL Query:\n{sql_query}\n\n")
         sql_string = f"\n\n{sql_query}\n\n"
+
+        # Safety check: reject non-read-only or structurally invalid queries
+        # before they reach the database.
+        safety_validator = SQLSafetyValidator(schema_info=self.schema_info if isinstance(self.schema_info, dict) else None)
+        try:
+            safety_validator.validate(sql_query)
+        except SQLSafetyError as safety_err:
+            logging.error(f"SQL safety check failed: {safety_err}")
+            await step.context.send_activity(
+                "The generated query was rejected by the safety validator and will not be executed. "
+                "Please rephrase your question."
+            )
+            # Surface the error as a result string so the conversation can self-correct
+            return sql_string, f"Safety error: {safety_err}"
 
         # Establish a persistent database connection
         async with aioodbc.connect(dsn=DB_CONFIG.CONN_STR) as conn:

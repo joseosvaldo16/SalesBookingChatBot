@@ -115,7 +115,97 @@ The **[`DialogHelper`](src/utilities/dialog_helper.py)** class is a utility clas
 
 ---
 
-### **3. Bot Logic Workflow**
+### **2.7 SQL Safety Validator (sql_safety.py)**
+
+The **[`SQLSafetyValidator`](src/utilities/sql_safety.py)** class is a static guardrail that runs **before** any LLM-generated query reaches the database.
+
+- **Read-only enforcement** – any query containing DML/DDL keywords (`INSERT`, `UPDATE`, `DELETE`, `DROP`, `TRUNCATE`, `ALTER`, `CREATE`, `EXEC`, `BULK INSERT`, `OPENROWSET`, `xp_cmdshell`, `sp_executesql`, `MERGE`) is rejected immediately and never executed.
+- **Start-token check** – every valid query must begin with `SELECT` or `WITH` (for CTEs).  Queries that begin with any other token are rejected.
+- **Schema constraint check** (optional) – when a schema dictionary is supplied, the validator inspects every `FROM` / `JOIN` reference and identifier for names that do not exist in the known schema.  Unknown names are logged as warnings so the self-correction loop can surface them to the user.
+- **SQLSafetyError** – a dedicated exception class is raised on failure, which is caught in `run_query` and reported to the user without executing the offending query.
+
+---
+
+### **3. System Architecture**
+
+The following diagram shows the end-to-end request flow from the user through all system components.
+
+```
+┌──────────────┐   HTTP/WebSocket   ┌──────────────────────────────────────┐
+│   User       │ ─────────────────► │  aiohttp Web Server (app.py)         │
+│  (Teams /    │                    │  POST /api/messages                  │
+│  Web Chat)   │ ◄───────────────── │  CloudAdapter + Bot Framework SDK    │
+└──────────────┘   Adaptive Card /  └───────────────┬──────────────────────┘
+                   Text Response                    │
+                                                    ▼
+                                    ┌──────────────────────────────────────┐
+                                    │  SalesBookingBot (on_turn)           │
+                                    │  - OAuth authentication check        │
+                                    │  - Route to SalesBookingDialog       │
+                                    └───────────────┬──────────────────────┘
+                                                    │
+                                                    ▼
+                                    ┌──────────────────────────────────────┐
+                                    │  SalesBookingDialog (Waterfall)      │
+                                    │  1. prompt_for_login_step            │
+                                    │  2. handle_login_step (OAuthPrompt)  │
+                                    │  3. handle_message_step              │
+                                    │     ├── handle_query ──────────────┐ │
+                                    │     └── chat_with_gpt              │ │
+                                    │  4. run_query_step                 │ │
+                                    │  5. process_results_step           │ │
+                                    └───────────────┬────────────────────┼─┘
+                                                    │                    │
+                         ┌──────────────────────────┘      clarification │
+                         ▼                                 dialog loop   │
+          ┌──────────────────────────┐                                   │
+          │  BotUtilities            │                                   │
+          │  get_sql_query()         │ ◄─────────────────────────────────┘
+          │  ┌──────────────────┐    │
+          │  │ Azure OpenAI     │    │
+          │  │ GPT-4o           │    │
+          │  │ (SQL generation) │    │
+          │  └──────────────────┘    │
+          │                          │
+          │  ┌──────────────────┐    │
+          │  │ FAISS Vector DB  │    │
+          │  │ (column matching │    │
+          │  │  for filter vals)│    │
+          │  └──────────────────┘    │
+          └──────────┬───────────────┘
+                     │ generated SQL
+                     ▼
+          ┌──────────────────────────┐
+          │  SQLSafetyValidator      │  ← rejects non-SELECT, forbidden
+          │  (sql_safety.py)         │    keywords, unknown schema refs
+          └──────────┬───────────────┘
+                     │ validated SQL
+                     ▼
+          ┌──────────────────────────┐
+          │  MS SQL Server (Azure)   │
+          │  BOOKINGS / SALES tables │
+          └──────────┬───────────────┘
+                     │ result rows
+                     ▼
+          ┌──────────────────────────┐
+          │  validate_sql_query()    │  ← GPT-4o post-execution check
+          │  explain_results()       │    + pivot / format refinement
+          └──────────┬───────────────┘
+                     │ formatted results + explanation
+                     ▼
+          ┌──────────────────────────┐
+          │  Azure Blob Storage      │
+          │  - CSV download link     │
+          │  - Conversation log      │
+          └──────────┬───────────────┘
+                     │ Adaptive Card / download URL
+                     ▼
+                   User
+```
+
+---
+
+### **4. Bot Logic Workflow**
 
 Here is a simplified workflow that explains how the bot processes user queries:
 
@@ -128,7 +218,7 @@ Here is a simplified workflow that explains how the bot processes user queries:
    - The **[`handle_query`](src/dialogs/SalesBookingDialog.py#L236-267)** method checks if the query contains proper nouns or values that may belong to a column with high cardinality using the **[`has_name_or_product`](src/utilities/BotUtilities.py#L618-629)** method in the **[`Bot Utilities`](src/utilities/BotUtilities.py)** class. If such values are found, the bot will attempt to find matching values in columns using the **[find_matching_columns](src/utilities/BotUtilities.py#L699-739)** method in the **[`BotUtilities`](src/utilities/BotUtilities.py)** class. If the value matches one column, it is assumed to be the correct column. If the value matches multiple or no columns, the bot will ask the user to choose which column they want to apply their filter value to using the [`PromptClarificationDialog`](src/dialogs/SalesBookingDialog.py#L113-117)**. The [`PromptClarificationDialog`](src/dialogs/SalesBookingDialog.py#L113-117)** will ask the user to choose the value they meant to look for by presenting the top 5 ranking unique values in the chosen column. If the query is still ambiguous, the bot will ask more questions. If the query is clear, the bot will update the natural language query, enhancing it with context. The **[`PromptClarificationDialog`](src/dialogs/SalesBookingDialog.py#L113-117)** ends, and the **[`SalesBookingDialog`](src/dialogs/SalesBookingDialog.py)** resumes by calling the **[`run_query_step`](src/dialogs/SalesBookingDialog.py#L358-374)** method.
     
 3. **Running SQL Queries:**
-   - The **[`run_query_step`](src/dialogs/SalesBookingDialog.py#L358-374)** generates the SQL query using GPT-4o. The SQL query is then executed using the **[run_query](src/dialogs/SalesBookingDialog.py#L485-563)** method in the **[`SalesBookingDialog`](src/dialogs/SalesBookingDialog.py)** class. The results are returned and used to validate the query using the **validate_sql_query** method in the **[`BotUtilities`](src/utilities/BotUtilities.py)** class. If the query is invalid, the GPT will attempt to fix it.
+   - The **[`run_query_step`](src/dialogs/SalesBookingDialog.py#L358-374)** generates the SQL query using GPT-4o. Before the query is executed the **[`SQLSafetyValidator`](src/utilities/sql_safety.py)** is invoked to ensure the query is read-only and structurally valid. If the safety check fails the bot notifies the user and does not execute the query. If the check passes, the query is executed using the **[run_query](src/dialogs/SalesBookingDialog.py#L485-563)** method. The results are then used to validate the query via the **validate_sql_query** method in **[`BotUtilities`](src/utilities/BotUtilities.py)**. If the query is invalid, GPT will attempt to fix it.
 
 4. **Displaying and Saving Results:**
    The results are then formatted into an adaptive card using the **[`format_result_for_adaptive_card_teams`](src/utilities/BotUtilities.py#L376-458)** method in the **[`BotUtilities`](src/utilities/BotUtilities.py)** class and sent to the user.
@@ -186,4 +276,111 @@ The bot is designed to be run either locally or within a Docker container, makin
 - [Azure Open AI API](https://azure.microsoft.com/en-us/services/cognitive-services/openai/)
 - [Azure Blob Storage](https://azure.microsoft.com/en-us/services/storage/blobs/)
 
+---
+
+## Safety Layer
+
+The **[`SQLSafetyValidator`](src/utilities/sql_safety.py)** class is the first line of defence between the LLM output and the database.  It runs synchronously and deterministically — no AI is involved — so it cannot be confused or bypassed by prompt injection.
+
+### Guardrails
+
+| Check | What it does |
+|---|---|
+| **Read-only enforcement** | Rejects any query containing DML/DDL keywords: `INSERT INTO`, `UPDATE`, `DELETE FROM`, `DROP`, `TRUNCATE TABLE`, `ALTER`, `CREATE`, `EXEC[UTE]`, `BULK INSERT`, `OPENROWSET`, `OPENDATASOURCE`, `xp_cmdshell`, `sp_executesql`, `MERGE INTO`. |
+| **Start-token check** | Requires every generated query to begin with `SELECT` or `WITH`.  Anything else (e.g. a stray `handle_query` string from the LLM) is rejected. |
+| **Schema constraint check** | When a schema dictionary is provided (table → column list), warns about any table or column reference in the query that cannot be found in the schema.  These **hallucinated** identifiers are logged and can be surfaced to the user via the self-correction loop. |
+
+### How it is integrated
+
+```
+run_query()  (SalesBookingDialog.py)
+    │
+    ├── get_sql_query()      ← LLM generates SQL
+    │
+    ├── SQLSafetyValidator.validate(sql)
+    │       ├── passes → proceed to DB execution
+    │       └── SQLSafetyError → notify user, abort, no DB call made
+    │
+    └── validate_sql_query() ← GPT post-execution refinement
+```
+
+### Extending the safety layer
+
+- To add new forbidden keywords, extend `_FORBIDDEN_PATTERNS` in [`sql_safety.py`](src/utilities/sql_safety.py).
+- To enable schema constraint checking, pass a `dict[str, list[str]]` mapping of table → columns when constructing `SQLSafetyValidator`.
+
+---
+
+## Evaluation Framework
+
+The [`evaluation/`](evaluation/) directory contains an offline harness for measuring the quality of the SQL generation pipeline.
+
+### Test dataset — `evaluation/test_queries.json`
+
+Each entry in the JSON array has the following schema:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | Unique identifier (`Q001`, `Q002`, …) |
+| `description` | string | Short human-readable description of the test case |
+| `input_question` | string | Natural language question sent to the bot |
+| `expected_sql` | string | Ground-truth MSSQL query |
+| `notes` | string | Optional caveats about schema variations |
+
+The initial dataset covers 10 representative query types: single-table aggregation, multi-table UNION, top-N ranking, date range filtering, year-over-year comparison, and named-entity filtering.
+
+### Evaluation script — `evaluation/evaluate.py`
+
+The script calls the same Azure OpenAI deployment used by the bot, measures three metrics per test case, and writes a JSON report.
+
+**Metrics**
+
+| Metric | Description |
+|---|---|
+| **Exact match** | Normalised (lowercase, collapsed whitespace) generated SQL equals the expected SQL. |
+| **Keyword coverage** | Fraction of meaningful tokens from the expected SQL (table names, column names, aggregates) that appear in the generated SQL.  Useful when minor formatting differences cause exact match to fail. |
+| **Safety pass** | The generated SQL passes all `SQLSafetyValidator` checks (read-only, valid start token). |
+
+**Usage**
+
+```bash
+# Set Azure OpenAI credentials
+export AZURE_OPENAI_ENDPOINT="https://<resource>.openai.azure.com/"
+export AZURE_OPENAI_API_KEY="<key>"
+export AZURE_OPENAI_DEPLOYMENT="gpt-4o"
+export AZURE_OPENAI_API_VERSION="2024-02-15-preview"
+
+# Run from the repository root
+python -m evaluation.evaluate
+
+# Optional: use a custom test file or schema
+python -m evaluation.evaluate \
+    --test-file evaluation/test_queries.json \
+    --schema-info path/to/schema.txt \
+    --output evaluation/results.json
+```
+
+**Sample output**
+
+```
+============================================================
+EVALUATION SUMMARY
+============================================================
+  Total test cases     : 10
+  Exact match rate     : 40.0%  (4/10)
+  Safety pass rate     : 100.0%
+  Avg keyword coverage : 82.3%
+============================================================
+
+ID       Exact   Kw Cov  Safety  Question
+--------------------------------------------------------------------------------
+Q001       ✓      95%      ✓     How many units did we sell this year?
+Q002       ✓      90%      ✓     Who are the top 5 customers by revenue last year?
+...
+```
+
+### Extending the evaluation
+
+1. Add new entries to `evaluation/test_queries.json` following the same schema.
+2. For end-to-end testing that executes queries against a real database, extend `evaluate.py` to call the full `run_query` pipeline and compare result row counts or specific cell values.
 

@@ -1,0 +1,72 @@
+[
+  {
+    "id": "Q001",
+    "description": "Total sales quantity for the current year",
+    "input_question": "How many units did we sell this year?",
+    "expected_sql": "SELECT SUM(Quantity) AS Total_Units FROM SALES WHERE YEAR(Date) = YEAR(CAST(GETDATE() AS DATE))",
+    "notes": "Quantity column name and table may differ per deployment schema."
+  },
+  {
+    "id": "Q002",
+    "description": "Top 5 customers by revenue last year",
+    "input_question": "Who are the top 5 customers by revenue last year?",
+    "expected_sql": "SELECT TOP 5 Customer_Name, SUM(Amount) AS Total_Revenue FROM SALES WHERE YEAR(Date) = YEAR(CAST(GETDATE() AS DATE)) - 1 GROUP BY Customer_Name ORDER BY Total_Revenue DESC",
+    "notes": "Revenue column may be named Amount, Sales_Amount, or Revenue depending on schema."
+  },
+  {
+    "id": "Q003",
+    "description": "Total bookings for the current month",
+    "input_question": "What is the total number of bookings this month?",
+    "expected_sql": "SELECT COUNT(*) AS Total_Bookings FROM BOOKINGS WHERE YEAR(Date) = YEAR(CAST(GETDATE() AS DATE)) AND MONTH(Date) = MONTH(CAST(GETDATE() AS DATE))",
+    "notes": "Date column name may differ per deployment schema."
+  },
+  {
+    "id": "Q004",
+    "description": "Sales by country for the past 12 months",
+    "input_question": "Show me sales broken down by country for the last 12 months.",
+    "expected_sql": "SELECT Ship_To_Country, SUM(Amount) AS Total_Sales FROM SALES WHERE Date >= DATEADD(MONTH, -12, CAST(GETDATE() AS DATE)) GROUP BY Ship_To_Country ORDER BY Total_Sales DESC",
+    "notes": "Country column is Ship_To_Country in the default schema."
+  },
+  {
+    "id": "Q005",
+    "description": "Monthly sales trend for current year",
+    "input_question": "Give me the monthly sales trend for this year.",
+    "expected_sql": "SELECT MONTH(Date) AS Month, SUM(Amount) AS Monthly_Sales FROM SALES WHERE YEAR(Date) = YEAR(CAST(GETDATE() AS DATE)) GROUP BY MONTH(Date) ORDER BY Month",
+    "notes": "May be rendered with a PIVOT for readability."
+  },
+  {
+    "id": "Q006",
+    "description": "Open bookings (unshipped orders) count",
+    "input_question": "How many open orders do we have?",
+    "expected_sql": "SELECT COUNT(*) AS Open_Orders FROM BOOKINGS",
+    "notes": "BOOKINGS table stores unshipped orders."
+  },
+  {
+    "id": "Q007",
+    "description": "Sales for a specific sales rep",
+    "input_question": "What were the total sales for sales rep John Smith last quarter?",
+    "expected_sql": "SELECT SUM(Amount) AS Total_Sales FROM SALES WHERE SalesRep_Name LIKE '%John%' AND SalesRep_Name LIKE '%Smith%' AND Date >= DATEADD(QUARTER, -1, CAST(GETDATE() AS DATE))",
+    "notes": "Uses LIKE with wildcards for name matching as per bot rules."
+  },
+  {
+    "id": "Q008",
+    "description": "Top 10 parts by bookings quantity",
+    "input_question": "What are the top 10 parts by number of bookings?",
+    "expected_sql": "SELECT TOP 10 Part_Number, COUNT(*) AS Booking_Count FROM BOOKINGS GROUP BY Part_Number ORDER BY Booking_Count DESC",
+    "notes": "Uses TOP instead of LIMIT per MSSQL convention."
+  },
+  {
+    "id": "Q009",
+    "description": "Sales and bookings combined for a product group",
+    "input_question": "Show total sales and bookings for product group PG_X.",
+    "expected_sql": "SELECT 'Sales' AS Source, SUM(Amount) AS Total FROM SALES WHERE PG LIKE '%PG_X%' UNION ALL SELECT 'Bookings' AS Source, SUM(Amount) AS Total FROM BOOKINGS WHERE PG LIKE '%PG_X%'",
+    "notes": "Combines both tables with UNION ALL."
+  },
+  {
+    "id": "Q010",
+    "description": "Year-over-year sales comparison",
+    "input_question": "Compare total sales this year vs last year.",
+    "expected_sql": "SELECT YEAR(Date) AS Year, SUM(Amount) AS Total_Sales FROM SALES WHERE YEAR(Date) IN (YEAR(CAST(GETDATE() AS DATE)), YEAR(CAST(GETDATE() AS DATE)) - 1) GROUP BY YEAR(Date) ORDER BY Year",
+    "notes": "Simple aggregation; could also be expressed with PIVOT."
+  }
+]
